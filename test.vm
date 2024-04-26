@@ -1,0 +1,8 @@
+push constant 10
+pop temp 6
+push local 0
+push that 5
+add
+push argument 1
+sub
+neg
