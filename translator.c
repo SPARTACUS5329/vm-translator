@@ -16,16 +16,20 @@ void error(const char *message) {
     exit(1);
 }
 
-void translate(char **lines) {
+char** translate(char **lines) {
     char *line = malloc(MAX_LINE_LENGTH * sizeof(char));
+    char *translatedInstruction;
+    char **instructions = malloc(lineCount * sizeof(char *));
     for (int i = 0; i < lineCount; i++) {
+        instructions[i] = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
         line = lines[i];
-        char *translatedInstruction;
         if (streq("push", line, 4) || streq("pop", line, 3))
             translatedInstruction = translateMemoryInstruction(line);
         else translatedInstruction = translateArithmeticAndLogicalInstruction(line);
         printf("%s\n", translatedInstruction);
+        sprintf(instructions[i], "%s", translatedInstruction);
     }
+    return instructions;
 }
 
 char* translateArithmeticAndLogicalInstruction(char *instruction) {
@@ -193,12 +197,29 @@ void insert(char *key, char *data) {
     segmentRepresentationTable[hashIndex] = item;
 }
 
+void writeToFile(char **instructions, const char *fileName) {
+    printf("Reaching\n");
+    FILE *file;
+
+    file = fopen(fileName, "w");
+    if (file == NULL) error("Error in opening out file");
+    printf("Writing to %s ...\n\n", fileName);
+
+    for (int i = 0; i < lineCount; i++) {
+        fprintf(file, "%s\n", instructions[i]);
+    }
+
+    fclose(file);
+}
+
 int main(int argc, char *argv[]) {
-    if (argc < 2) error("[main] Not enough input arguments");
+    if (argc < 3) error("[main] Not enough input arguments");
     const char *readFileName = argv[1];
     const char *writeFileName = argv[2];
     printf("\nTranslating %s...\n\n", readFileName);
     char **lines = initialize(readFileName);
-    translate(lines);
+    char **instructions = translate(lines);
+    writeToFile(instructions, writeFileName);
+    printf("Successfully translated!\n");
     return 0;
 }

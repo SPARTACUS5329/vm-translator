@@ -13,10 +13,10 @@ typedef struct {
 lookup_table_item_t *segmentRepresentationTable[SEGMENT_REPRESENTATION_TABLE_SIZE];
 
 void error(const char *);
-void translate(char **lines);
+char** translate(char **lines);
 char* translateArithmeticAndLogicalInstruction(char *instruction);
 char* translateMemoryInstruction(char *line);
 char** initialize(const char *);
 void insert(char *key, char *data);
 lookup_table_item_t* search(char *key);
-
+void writeToFile(char **instructions, const char *fileName);
