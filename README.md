@@ -128,6 +128,37 @@ Therefore this can be extended to `argument`, `this`, and `that`
 Reference all the `command static i` in `Foo.vm` as `Foo.i` where `i` is any number
 The HACK assembler will map these variables into `RAM[16] - RAM[255]`. Therefore these are accessible by all methods in a program.
 
+**Example:**
+```vm
+push static i
+```
+
+```Hack-Assembly
+@Foo.i
+D=M
+
+@SP
+A=M
+M=D
+
+@SP
+M=M+1
+```
+
+**Example:**
+```vm
+pop static i
+```
+
+```Hack-Assembly
+@SP
+AM=M-1
+D=M
+
+@Foo.i
+M=D
+```
+
 ### Implementing `temp`
 
 It is a fixed `8` place memory segment with base address as `RAM[5]`. Therefore it extends till `RAM[12]`. The `push` and `pop` commands can be implemented like the [[VM Translator#^3bc85f|general cases]] with the base address hardcoded as `5`.
@@ -516,6 +547,3 @@ M=!M // *SP = !*SP
 @SP // SP++
 M=M+1
 ```
-
-
-
