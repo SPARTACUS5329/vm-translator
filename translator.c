@@ -73,7 +73,7 @@ char* translateMemoryInstruction(char *instruction) {
         else if (streq("constant", segment, 8))
             sprintf(translatedInstruction, "@%d\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1", n);
         else if (streq("static", segment, 6))
-            sprintf(translatedInstruction, "@%s.%d\nD=A\n@LCL\nD=D+A\n@R13\nM=D\n@SP\nAM=M-1\nD=M\n@R13\nA=M\nM=D", staticPrefix, n);
+            sprintf(translatedInstruction, "@%s.%d\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1", staticPrefix, n);
         else if (streq("pointer", segment, 7)) {
             char *address;
             switch (n) {
@@ -92,7 +92,28 @@ char* translateMemoryInstruction(char *instruction) {
         else error("[translateMemoryInstruction] Invalid memory segment");
     }
     else if (streq("pop", operation, 3)) {
-       return instruction; 
+        if (streq("local", segment, 5) || streq("argument", segment, 8) || streq("this", segment, 4) || streq("that", segment, 4) || streq("temp", segment, 4)) {
+            lookup_table_item_t *item = search(segment);
+            sprintf(translatedInstruction, "@%d\nD=A\n@%s\nD=D+A\n@R13\nM=D\n@SP\nAM=M-1\nD=M\n@R13\nA=M\nM=D", n, item->data);
+        }
+        else if (streq("static", segment, 6))
+            sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@%s.%d\nM=D", staticPrefix, n);
+        else if (streq("pointer", segment, 7)) {
+            char *address;
+            switch (n) {
+                case 0:
+                    strncpy(address, "THIS", 4);
+                    break;
+                case 1:
+                    strncpy(address, "THAT", 4);
+                    address = "THAT";
+                    break;
+                default:
+                    error("[translateMemoryInstruction] Invalid pointer value");
+            }
+            sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@%s\nM=D", address);
+        }
+        else error("[translateMemoryInstruction] Invalid memory segment");
     }
     else error("[translateMemoryInstruction] Invalid memory operation");
     return translatedInstruction;

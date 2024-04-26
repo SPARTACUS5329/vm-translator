@@ -11,3 +11,4 @@ gt
 lt
 lt
 push static 5
+pop static 5
