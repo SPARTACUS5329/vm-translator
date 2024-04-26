@@ -30,21 +30,29 @@ void translate(char **lines) {
 char* translateArithmeticAndLogicalInstruction(char *instruction) {
     char *translatedInstruction = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
     if (streq("add", instruction, 3))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M+D\n@SP\nM=M+1");
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M+D\n@SP\nM=M+1");
     else if (streq("sub", instruction, 3))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M-D\n@SP\nM=M+1");
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M-D\n@SP\nM=M+1");
     else if (streq("neg", instruction, 3))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nM=-M\n@SP\nM=M+1");
-    else if (streq("eq", instruction, 2))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_EQ_i\nD;JEQ\n@SP\nA=M\nM=0\n(TRUE_CONDITION_EQ_i)\n@SP\nA=M\nM=1\n@SP\nM=M+1");
-    else if (streq("gt", instruction, 2))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_GT_i\nD;JGT\n@SP\nA=M\nM=0\n(TRUE_CONDITION_GT_i)\n@SP\nA=M\nM=1\n@SP\nM=M+1");
-    else if (streq("lt", instruction, 2))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_LT_i\nD;JLT\n@SP\nA=M\nM=0\n(TRUE_CONDITION_LT_i)\n@SP\nA=M\nM=1\n@SP\nM=M+1");
-    else if (streq("and", instruction, 3))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=D&M\n@TRUE_CONDITION_AND_i\nD;JNE\n@SP\nA=M\nM=0\n(TRUE_CONDITION_AND_i)\n@SP\nA=M\nM=1\n@SP\nM=M+1");
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nM=-M\n@SP\nM=M+1");
+    else if (streq("eq", instruction, 2)) {
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_EQ_%d\nD;JEQ\n@SP\nA=M\nM=0\n(TRUE_CONDITION_EQ_%d)\n@SP\nA=M\nM=1\n@SP\nM=M+1", eqCount, eqCount);
+        eqCount++;
+    }
+    else if (streq("gt", instruction, 2)) {
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_GT_%d\nD;JGT\n@SP\nA=M\nM=0\n(TRUE_CONDITION_GT_%d)\n@SP\nA=M\nM=1\n@SP\nM=M+1", gtCount, gtCount);
+        gtCount++;
+    }
+    else if (streq("lt", instruction, 2)) {
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=M-D\n@TRUE_CONDITION_LT_%d\nD;JLT\n@SP\nA=M\nM=0\n(TRUE_CONDITION_LT_%d)\n@SP\nA=M\nM=1\n@SP\nM=M+1", ltCount, ltCount);
+        ltCount++;
+    }
+    else if (streq("and", instruction, 3)) {
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nD=D&M\n@TRUE_CONDITION_AND_%d\nD;JNE\n@SP\nA=M\nM=0\n(TRUE_CONDITION_AND_%d)\n@SP\nA=M\nM=1\n@SP\nM=M+1", andCount, andCount);
+        andCount++;
+    }
     else if (streq("not", instruction, 3))
-        strcat(translatedInstruction, "@SP\nAM=M-1\nM=!M\n@SP\nM=M+1");
+        sprintf(translatedInstruction, "@SP\nAM=M-1\nM=!M\n@SP\nM=M+1");
     else error("[translateArithmeticAndLogicalInstruction] Invalid instruction");
     return translatedInstruction;
 }

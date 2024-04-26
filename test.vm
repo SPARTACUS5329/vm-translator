@@ -6,3 +6,7 @@ add
 push argument 1
 sub
 neg
+and
+gt
+lt
+lt
