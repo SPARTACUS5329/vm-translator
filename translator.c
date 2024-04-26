@@ -102,9 +102,8 @@ char** initialize(const char *fileName) {
     FILE *file = fopen(fileName, "r");
     if (file == NULL) error("[initialize] File not found");
 
-    // char *extension = strchr(fileName, '.');
-    // strncpy(staticPrefix, fileName, extension - fileName);
-    // staticPrefix[extension - fileName] = '\0';
+    if (sscanf(fileName, "%[^.]", staticPrefix) != 1) error("[initialize] Invalid file naming convention");
+    printf("staticPrefix: %s\n", staticPrefix);
 
     char **lines;
     char buffer[100];
