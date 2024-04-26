@@ -9,6 +9,7 @@ static int eqCount = 0;
 static int gtCount = 0;
 static int ltCount = 0;
 static int andCount = 0;
+static char staticPrefix[MAX_FILE_NAME_LENGTH];
 
 void error(const char *message) {
     perror(message);
@@ -19,10 +20,10 @@ void translate(char **lines) {
     char *line = malloc(MAX_LINE_LENGTH * sizeof(char));
     for (int i = 0; i < lineCount; i++) {
         line = lines[i];
-        char *firstSpace = strchr(line, ' ');
-        char *translatedInstruction = firstSpace == NULL ?
-            translateArithmeticAndLogicalInstruction(line)
-            : translateMemoryInstruction(line);
+        char *translatedInstruction;
+        if (streq("push", line, 4) || streq("pop", line, 3))
+            translatedInstruction = translateMemoryInstruction(line);
+        else translatedInstruction = translateArithmeticAndLogicalInstruction(line);
         printf("%s\n", translatedInstruction);
     }
 }
@@ -58,12 +59,53 @@ char* translateArithmeticAndLogicalInstruction(char *instruction) {
 }
 
 char* translateMemoryInstruction(char *instruction) {
-    return instruction;
+    char *translatedInstruction = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
+    char operation[4];
+    char segment[10];
+    int n;
+
+    if (sscanf(instruction, "%s %s %d", operation, segment, &n) != 3) error("[translateMemoryInstruction] Invalid instruction");
+    if (streq("push", operation, 4)) {
+        if (streq("local", segment, 5) || streq("argument", segment, 8) || streq("this", segment, 4) || streq("that", segment, 4) || streq("temp", segment, 4)) {
+            lookup_table_item_t *item = search(segment);
+            sprintf(translatedInstruction, "@%d\nD=A\n@%s\nA=D+A\nD=M\n@SP\nM=D\nM=M+1", n, item->data);
+        }
+        else if (streq("constant", segment, 8))
+            sprintf(translatedInstruction, "@%d\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1", n);
+        else if (streq("static", segment, 6))
+            sprintf(translatedInstruction, "@%s.%d\nD=A\n@LCL\nD=D+A\n@R13\nM=D\n@SP\nAM=M-1\nD=M\n@R13\nA=M\nM=D", staticPrefix, n);
+        else if (streq("pointer", segment, 7)) {
+            char *address;
+            switch (n) {
+                case 0:
+                    strncpy(address, "THIS", 4);
+                    break;
+                case 1:
+                    strncpy(address, "THAT", 4);
+                    address = "THAT";
+                    break;
+                default:
+                    error("[translateMemoryInstruction] Invalid pointer value");
+            }
+            sprintf(translatedInstruction, "@%s\nD=A\n@SP\nM=D\nM=M+1", address);
+        }
+        else error("[translateMemoryInstruction] Invalid memory segment");
+    }
+    else if (streq("pop", operation, 3)) {
+       return instruction; 
+    }
+    else error("[translateMemoryInstruction] Invalid memory operation");
+    return translatedInstruction;
 }
 
 char** initialize(const char *fileName) {
     FILE *file = fopen(fileName, "r");
     if (file == NULL) error("[initialize] File not found");
+
+    // char *extension = strchr(fileName, '.');
+    // strncpy(staticPrefix, fileName, extension - fileName);
+    // staticPrefix[extension - fileName] = '\0';
+
     char **lines;
     char buffer[100];
 
@@ -86,7 +128,49 @@ char** initialize(const char *fileName) {
         } else error("Too many lines in the file. Increase MAX_LINES.\n");
     }
 
+    insert("local", "LCL");
+    insert("argument", "ARG");
+    insert("this", "THIS");
+    insert("that", "THAT");
+    insert("temp", "5");
+
     return lines;
+}
+
+unsigned long hash(char *str) {
+    unsigned long hash = 5381;
+    int c;
+
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash % SEGMENT_REPRESENTATION_TABLE_SIZE;
+}
+
+lookup_table_item_t *search(char *key) {
+    int hashIndex = hash(key);
+
+    while(segmentRepresentationTable[hashIndex] != NULL) {
+        if(segmentRepresentationTable[hashIndex]->key == hashIndex)
+            return segmentRepresentationTable[hashIndex]; 
+			
+        ++hashIndex;
+        hashIndex %= SEGMENT_REPRESENTATION_TABLE_SIZE;
+    }        
+
+    return NULL;        
+}
+
+void insert(char *key, char *data) {
+    lookup_table_item_t *item = (lookup_table_item_t *) malloc(sizeof(lookup_table_item_t));
+    int hashIndex = hash(key);
+    item->key = hashIndex;
+    strcpy(item->data, data);
+    while(segmentRepresentationTable[hashIndex] != NULL) {
+        ++hashIndex;
+        hashIndex %= SEGMENT_REPRESENTATION_TABLE_SIZE;
+    }
+    segmentRepresentationTable[hashIndex] = item;
 }
 
 int main(int argc, char *argv[]) {
