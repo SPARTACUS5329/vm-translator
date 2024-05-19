@@ -1,3 +1,4 @@
+label STARTING
 push constant 10
 pop temp 6
 push local 0
@@ -12,3 +13,4 @@ lt
 lt
 push static 5
 pop static 5
+goto STARTING

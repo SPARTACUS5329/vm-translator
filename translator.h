@@ -3,20 +3,23 @@
 #define SEGMENT_REPRESENTATION_TABLE_SIZE 10
 #define MAX_LINES 500
 #define MAX_LINE_LENGTH 20
-#define MAX_ASSEMBLY_LINE_LENGTH 300 
+#define MAX_ASSEMBLY_LINE_LENGTH 300
+#define MAX_LABEL_SIZE 50
 
 typedef struct {
-	int key;
-	char data[10];
+  int key;
+  char data[10];
 } lookup_table_item_t;
 
-lookup_table_item_t *segmentRepresentationTable[SEGMENT_REPRESENTATION_TABLE_SIZE];
+lookup_table_item_t
+    *segmentRepresentationTable[SEGMENT_REPRESENTATION_TABLE_SIZE];
 
 void error(const char *);
-char** translate(char **lines);
-char* translateArithmeticAndLogicalInstruction(char *instruction);
-char* translateMemoryInstruction(char *line);
-char** initialize(const char *);
+char **translate(char **lines);
+char *translateArithmeticAndLogicalInstruction(char *instruction);
+char *translateMemoryInstruction(char *line);
+char *translateBranchingInstruction(char *line);
+char **initialize(const char *);
 void insert(char *key, char *data);
-lookup_table_item_t* search(char *key);
+lookup_table_item_t *search(char *key);
 void writeToFile(char **instructions, const char *fileName);

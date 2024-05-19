@@ -30,6 +30,7 @@ char **translate(char **lines) {
       translatedInstruction = translateBranchingInstruction(line);
     else
       translatedInstruction = translateArithmeticAndLogicalInstruction(line);
+    printf("%s\n", translatedInstruction);
     sprintf(instructions[i], "%s", translatedInstruction);
   }
   return instructions;
@@ -84,20 +85,24 @@ char *translateArithmeticAndLogicalInstruction(char *instruction) {
 
 char *translateBranchingInstruction(char *instruction) {
   char *translatedInstruction = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
-  char operation[7];
-  char location[MAX_LABEL_SIZE];
+  char operation[4];
+  char segment[10];
+  int n;
 
-  if (sscanf(instruction, "%s %s", operation, location) != 2)
-    error("[translateBranchingInstruction] Invalid instruction");
+  if (sscanf(instruction, "%s %s %d", operation, segment, &n) != 3)
+    error("[translateMemoryInstruction] Invalid instruction");
   if (streq("label", instruction, 5))
-    sprintf(translatedInstruction, "(%s)", location);
-  else if (streq("goto", instruction, 4))
-    sprintf(translatedInstruction, "@%s\nnull=null;JMP", location);
-  else if (streq("if-goto", instruction, 7))
-    sprintf(translatedInstruction, "@SP\nAM=M-1\nD=M-1\n\n@%s\nnull=D;JEQ",
-            location);
+    sprintf(
+        translatedInstruction,
+        "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M+D\n@SP\nM=M+1");
+  else if (streq("sub", instruction, 3))
+    sprintf(
+        translatedInstruction,
+        "@SP\nAM=M-1\nD=M\n@13\nM=D\n@SP\nAM=M-1\nD=M\n@13\nM=M-D\n@SP\nM=M+1");
+  else if (streq("neg", instruction, 3))
+    sprintf(translatedInstruction, "@SP\nAM=M-1\nM=-M\n@SP\nM=M+1");
   else
-    error("[translateBranchingInstruction] Invalid instruction");
+    error("[translateArithmeticAndLogicalInstruction] Invalid instruction");
   return translatedInstruction;
 }
 
