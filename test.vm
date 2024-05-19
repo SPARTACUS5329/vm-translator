@@ -1,4 +1,6 @@
 label STARTING
+function foo 5
+return
 push constant 10
 pop temp 6
 push local 0
@@ -14,3 +16,4 @@ lt
 push static 5
 pop static 5
 goto STARTING
+call foo 3

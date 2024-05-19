@@ -1,4 +1,6 @@
 (STARTING)
+(STARTING)
+(STARTING)
 @10
 D=A
 @SP
@@ -167,5 +169,7 @@ AM=M-1
 D=M
 @test.5
 M=D
+@STARTING
+null=null;JMP
 @STARTING
 null=null;JMP

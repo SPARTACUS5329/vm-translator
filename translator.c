@@ -28,7 +28,9 @@ char **translate(char **lines) {
     else if (streq("label", line, 5) || streq("goto", line, 4) ||
              streq("if-goto", line, 7))
       translatedInstruction = translateBranchingInstruction(line);
-    else
+    else if (streq("function", line, 8) || streq("return", line, 6) ||
+             streq("call", line, 4)) {
+    } else
       translatedInstruction = translateArithmeticAndLogicalInstruction(line);
     sprintf(instructions[i], "%s", translatedInstruction);
   }
@@ -113,7 +115,7 @@ char *translateMemoryInstruction(char *instruction) {
     if (streq("local", segment, 5) || streq("argument", segment, 8) ||
         streq("this", segment, 4) || streq("that", segment, 4) ||
         streq("temp", segment, 4)) {
-      lookup_table_item_t *item = search(segment);
+      lookup_table_item_t *item = searchSegmentTable(segment);
       sprintf(translatedInstruction,
               "@%d\nD=A\n@%s\nA=D+A\nD=M\n@SP\nM=D\nM=M+1", n, item->data);
     } else if (streq("constant", segment, 8))
@@ -141,7 +143,7 @@ char *translateMemoryInstruction(char *instruction) {
     if (streq("local", segment, 5) || streq("argument", segment, 8) ||
         streq("this", segment, 4) || streq("that", segment, 4) ||
         streq("temp", segment, 4)) {
-      lookup_table_item_t *item = search(segment);
+      lookup_table_item_t *item = searchSegmentTable(segment);
       sprintf(
           translatedInstruction,
           "@%d\nD=A\n@%s\nD=D+A\n@R13\nM=D\n@SP\nAM=M-1\nD=M\n@R13\nA=M\nM=D",
@@ -177,7 +179,6 @@ char **initialize(const char *fileName) {
 
   if (sscanf(fileName, "%[^.]", staticPrefix) != 1)
     error("[initialize] Invalid file naming convention");
-  printf("staticPrefix: %s\n", staticPrefix);
 
   char **lines;
   char buffer[100];
@@ -204,11 +205,11 @@ char **initialize(const char *fileName) {
       error("Too many lines in the file. Increase MAX_LINES.\n");
   }
 
-  insert("local", "LCL");
-  insert("argument", "ARG");
-  insert("this", "THIS");
-  insert("that", "THAT");
-  insert("temp", "5");
+  insertSegmentTable("local", "LCL");
+  insertSegmentTable("argument", "ARG");
+  insertSegmentTable("this", "THIS");
+  insertSegmentTable("that", "THAT");
+  insertSegmentTable("temp", "5");
 
   return lines;
 }
@@ -223,7 +224,7 @@ unsigned long hash(char *str) {
   return hash % SEGMENT_REPRESENTATION_TABLE_SIZE;
 }
 
-lookup_table_item_t *search(char *key) {
+lookup_table_item_t *searchSegmentTable(char *key) {
   int hashIndex = hash(key);
 
   while (segmentRepresentationTable[hashIndex] != NULL) {
@@ -237,7 +238,7 @@ lookup_table_item_t *search(char *key) {
   return NULL;
 }
 
-void insert(char *key, char *data) {
+void insertSegmentTable(char *key, char *data) {
   lookup_table_item_t *item =
       (lookup_table_item_t *)malloc(sizeof(lookup_table_item_t));
   int hashIndex = hash(key);
@@ -250,8 +251,43 @@ void insert(char *key, char *data) {
   segmentRepresentationTable[hashIndex] = item;
 }
 
+function_table_item_t *searchFunctionTable(char *key) {
+  int hashIndex = hash(key);
+
+  while (functionDataTable[hashIndex] != NULL) {
+    if (functionDataTable[hashIndex]->key == hashIndex)
+      return functionDataTable[hashIndex];
+
+    ++hashIndex;
+    hashIndex %= MAX_FUNCTIONS;
+  }
+
+  return NULL;
+}
+
+void insertFunctionTable(char *key, int args, int local) {
+  function_table_item_t *item = searchFunctionTable(key);
+  if (item == NULL)
+    item = (function_table_item_t *)malloc(sizeof(function_table_item_t));
+  else
+    goto assignment;
+
+  int hashIndex = hash(key);
+  item->key = hashIndex;
+  while (functionDataTable[hashIndex] != NULL) {
+    ++hashIndex;
+    hashIndex %= MAX_FUNCTIONS;
+  }
+  functionDataTable[hashIndex] = item;
+
+assignment:
+  if (args != -1)
+    item->args = args;
+  if (local != -1)
+    item->local = local;
+}
+
 void writeToFile(char **instructions, const char *fileName) {
-  printf("Reaching\n");
   FILE *file;
 
   file = fopen(fileName, "w");
@@ -266,6 +302,24 @@ void writeToFile(char **instructions, const char *fileName) {
   fclose(file);
 }
 
+void firstPass(char **lines) {
+  char *line = malloc(MAX_LINE_LENGTH * sizeof(char));
+  for (int i = 0; i < lineCount; i++) {
+    line = lines[i];
+    if (streq("function", line, 8)) {
+      char functionName[MAX_FILE_NAME_LENGTH];
+      int args;
+      sscanf(line, "function %s %d", functionName, &args);
+      insertFunctionTable(functionName, args, -1);
+    } else if (streq("call", line, 4)) {
+      char functionName[MAX_FILE_NAME_LENGTH];
+      int local;
+      sscanf(line, "call %s %d", functionName, &local);
+      insertFunctionTable(functionName, -1, local);
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 3)
     error("[main] Not enough input arguments");
@@ -273,6 +327,7 @@ int main(int argc, char *argv[]) {
   const char *writeFileName = argv[2];
   printf("\nTranslating %s...\n\n", readFileName);
   char **lines = initialize(readFileName);
+  firstPass(lines);
   char **instructions = translate(lines);
   writeToFile(instructions, writeFileName);
   printf("Successfully translated!\n");
