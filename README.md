@@ -12,7 +12,7 @@ sub
 neg
 ```
 
-## Implementing Virtual Memory Segments
+## 1. Implementing Virtual Memory Segments
 1. `local`
 2. `argument`
 3. `this`
@@ -22,7 +22,7 @@ neg
 7. `pointer`
 8. `temp`
 
-### Implementing the stack
+### 1.1 Implementing the stack
 **Assumptions**
 - `Stack Pointer (SP)` - Stored in `RAM[0]`
 - Stack base `addr = 256`
@@ -50,7 +50,7 @@ M=D
 M=M+1
 ```
 
-### Implementing `local`
+### 1.2 `LOCAL`
 
 **Assumptions**
 - `Local Pointer (LCL)` - Stored in `RAM[1]`
@@ -121,7 +121,7 @@ Therefore this can be extended to `argument`, `this`, and `that`
 2. `THIS - RAM[3]`
 3. `THAT - RAM[4]`
 
-### Implementing `static`
+### 1.3 `STATIC`
 
 **Challenge:** The `static` variables should be seen by all the methods in a program
 **Solution:** Store them in a `global space`
@@ -160,11 +160,11 @@ D=M
 M=D
 ```
 
-### Implementing `temp`
+### 1.4 `TEMP`
 
 It is a fixed `8` place memory segment with base address as `RAM[5]`. Therefore it extends till `RAM[12]`. The `push` and `pop` commands can be implemented like the [[VM Translator#^3bc85f|general cases]] with the base address hardcoded as `5`.
 
-### Implementing `pointer`
+### 1.5 `POINTER`
 
 Here we store the base address of `this` and `that`. So, this only occupies two registers. The only valid operations are
 - `push pointer 0/1`
@@ -212,9 +212,9 @@ D=M
 M=D
 ```
 
-## Implementing Arithmetic and Logical Operations
+## 2. Implementing Arithmetic and Logical Operations
 
-#### 1. `ADD`
+#### 2.1 `ADD`
 **Action:** `Pop`s the last two elements in the stack, adds them and `push`es the result
 
 ```VM
@@ -251,7 +251,7 @@ M=M+D
 M=M+1
 ```
 
-#### 2. `SUB`
+#### 2.2 `SUB`
 **Action:** `Pop`s the last two elements in the stack, subtracts the first element from the second and `push`es the result
 
 ```VM
@@ -288,7 +288,7 @@ M=M-D
 M=M+1
 ```
 
-#### 3. `NEG`
+#### 3.3 `NEG`
 **Action:** `Pop`s the last element in the stack, negates it and `push`es it
 
 ```VM
@@ -311,7 +311,7 @@ M=-M // *SP = -*SP
 M=M+1
 ```
 
-#### 4. `EQ`
+#### 2.4 `EQ`
 **Action:** `Pop`s the last two elements in the stack, checks if their equal and `push`es the boolean result
 
 ```VM
@@ -365,7 +365,7 @@ M=M+1
 
 Here `i` is the number of times `EQ` has already been called. So the first instance of `EQ` will have a label `TRUE_CONDITION_EQ_0`
 
-#### 5. `GT`
+#### 2.5 `GT`
 **Action:** `Pop`s the last two elements in the stack, checks if the second is greater than the first and `push`es the boolean result
 
 ```VM
@@ -419,7 +419,7 @@ M=M+1
 
 Here `i` is the number of times `GT` has already been called. So the first instance of `EQ` will have a label `TRUE_CONDITION_GT_0`
 
-#### 6. `LT`
+#### 2.6 `LT`
 **Action:** `Pop`s the last two elements in the stack, checks if the second one is less than the first one and `push`es the boolean result
 
 ```VM
@@ -473,7 +473,7 @@ M=M+1
 
 Here `i` is the number of times `LT` has already been called. So the first instance of `EQ` will have a label `TRUE_CONDITION_LT_0`
 
-#### 7. `AND`
+#### 2.7 `AND`
 **Action:** `Pop`s the last two elements in the stack, *boolean ANDs* them and `push`es the boolean result
 
 ```VM
@@ -526,7 +526,7 @@ M=M+1
 ```
 
 Here `i` is the number of times `AND` has already been called. So the first instance of `EQ` will have a label `TRUE_CONDITION_AND_0`
-#### 8. `NOT`
+#### 2.8 `NOT`
 **Action:** `Pop`s the last element, *boolean NOTs* it and `push`es the boolean result
 
 ```VM
@@ -548,3 +548,205 @@ M=!M // *SP = !*SP
 @SP // SP++
 M=M+1
 ```
+
+
+## 3. Implementing Branching Commands
+### 3.1 `LABEL`
+
+```vm
+label X
+```
+
+```hack-assembly
+(X)
+```
+
+### 3.2 `GOTO`
+
+```vm
+goto X
+```
+
+```hack-assembly
+@X
+null=null;JMP
+```
+
+### 3.3 `IF-GOTO`
+
+```vm
+// preceded by a boolean operator
+if-goto X
+```
+
+```hack-assembly
+@SP
+AM=M-1
+D=M-1
+
+@X
+null=D;JEQ
+```
+## 4. Implementing Function Commands
+### 4.1 `FUNCTION`
+
+```vm
+function foo x // x is the number of local variables
+```
+
+```pseudo-assembly
+label foo
+push 0 // x times
+```
+
+```hack-assembly
+(FOO)
+@x
+D=A
+@13
+M=D
+(FOO_SET_LCL)
+@SP
+A=M
+M=0
+@SP
+M=M+1
+@13
+M=M-1
+D=M
+@FOO_SET_LCL
+null=D;JNE
+```
+
+Maintain a record of the number of local variables in a hashmap to add the corresponding number of memory units while branching.
+### 4.2 `RETURN`
+
+```vm
+return
+```
+
+```pseudo-assembly
+endFrame = LCL
+retAddr = *(endFrame - 5)
+*ARG = pop
+SP = ARG + 1
+THAT = *(endFrame - 1)
+THIS = *(endFrame - 2)
+ARG = *(endFrame - 3)
+LCL = *(endFrame - 4)
+goto retAddr
+```
+
+```hack-assembly
+@LCL
+D=M
+@13
+M=D
+@5
+D=D-A
+@14
+M=D
+@SP
+AM=M-1
+D=M
+@ARG
+M=D
+D=M
+@SP
+M=D+1
+@13
+D=M
+@THAT
+MD=D-1
+@THIS
+MD=D-1
+@ARG
+MD=D-1
+@LCL
+MD=D-1
+@14
+A=M
+null=null;JMP
+```
+### 4.3 `CALL`
+
+If we're calling `foo` from `bar`. This is the `i`th `call` inside `bar`
+
+```vm
+call foo x // x is the number of arguments
+```
+
+```pseudo-assembly
+push returnAddress
+push LCL
+push ARG
+push THIS
+push THAT
+ARG = SP - 5 - x
+LCL = SP
+goto foo
+label returnAddress
+```
+
+```hack-assembly
+@bar$ret.i
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+@LCL
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+@ARG
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+@THIS
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+@THAT
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+@x
+D=A
+@5
+D=A+D
+@SP
+D=M-D
+@ARG
+M=D
+
+@SP
+D=M
+@LCL
+M=D
+
+@foo
+null=null;JMP
+
+(bar$ret.i)
+```
+
+Maintain a record of the number of argument variables in a hashmap to add the corresponding number of memory units while branching.
