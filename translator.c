@@ -10,6 +10,7 @@ static int gtCount = 0;
 static int ltCount = 0;
 static int andCount = 0;
 static char staticPrefix[MAX_FILE_NAME_LENGTH];
+static function_table_item_t *currentFunction;
 
 void error(const char *message) {
   perror(message);
@@ -28,9 +29,11 @@ char **translate(char **lines) {
     else if (streq("label", line, 5) || streq("goto", line, 4) ||
              streq("if-goto", line, 7))
       translatedInstruction = translateBranchingInstruction(line);
-    else if (streq("function", line, 8) || streq("return", line, 6) ||
-             streq("call", line, 4)) {
-    } else
+    else if (streq("function", line, 8) || streq("call", line, 4))
+      translatedInstruction = translateFunctionInstruction(line);
+    else if (streq("return", line, 6))
+      translatedInstruction = translateReturnInstruction(line);
+    else
       translatedInstruction = translateArithmeticAndLogicalInstruction(line);
     sprintf(instructions[i], "%s", translatedInstruction);
   }
@@ -100,6 +103,44 @@ char *translateBranchingInstruction(char *instruction) {
             location);
   else
     error("[translateBranchingInstruction] Invalid instruction");
+  return translatedInstruction;
+}
+
+char *translateReturnInstruction(char *instruction) {
+  char *translatedInstruction = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
+  sprintf(translatedInstruction,
+          "@LCL\nD=M\n@13\nM=D\n@5\nD=D-A\n@14\nM=D\n@SP\nAM=M-1\nD=M\n@ARG\nM="
+          "D\nD=M\n@SP\nM=D+1\n@13\nD=M\n@THAT\nMD=D-1\n@THIS\nMD=D-1\n@"
+          "ARG\nMD=D-1\n@LCL\nMD=D-1\n@14\nA=M\nnull=null;JMP");
+  return translatedInstruction;
+}
+
+char *translateFunctionInstruction(char *instruction) {
+  char *translatedInstruction = malloc(MAX_ASSEMBLY_LINE_LENGTH * sizeof(char));
+  char operation[7];
+  char functionName[MAX_FILE_NAME_LENGTH];
+  int n;
+
+  if (sscanf(instruction, "%s %s %d", operation, functionName, &n) != 3)
+    error("[translateFunctionInstruction] Invalid instruction");
+  if (streq("function", instruction, 8)) {
+    currentFunction = searchFunctionTable(functionName);
+    sprintf(translatedInstruction,
+            "(%s)\n@%d\nD=A\n@13\nM=D\n(%s_SET_LCL)\n@SP\nA=M\nM=0\n@SP\nM=M+"
+            "1\n@13\nM=M-1\nD=M\n@%s_SET_LCL\nnull=D;JNE",
+            functionName, n, functionName, functionName);
+
+  } else if (streq("call", instruction, 4))
+    sprintf(translatedInstruction,
+            "@%s$ret.%d\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n@LCL\nD=M\n@SP\nA="
+            "M\nM=D\n@SP\nM=M+1\n@ARG\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n@"
+            "THIS\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n@THAT\nD=M\n@SP\nA=M\nM=D\n@"
+            "SP\nM=M+1\n@%d\nD=A\n@5\nD=A+D\n@SP\nD=M-D\n@ARG\nM=D\n@SP\nD=M\n@"
+            "LCL\nM=D\n@%s\nnull=null;JMP\n(%s$ret.%d)",
+            currentFunction->name, currentFunction->calls, n, functionName,
+            currentFunction->name, currentFunction->calls++);
+  else
+    error("[translateFunctionInstruction] Invalid instruction");
   return translatedInstruction;
 }
 
@@ -285,6 +326,8 @@ assignment:
     item->args = args;
   if (local != -1)
     item->local = local;
+  item->calls = 0;
+  strncpy(item->name, key, MAX_FILE_NAME_LENGTH);
 }
 
 void writeToFile(char **instructions, const char *fileName) {

@@ -16,6 +16,8 @@ typedef struct {
   int key;
   int args;
   int local;
+  int calls;
+  char name[MAX_FILE_NAME_LENGTH];
 } function_table_item_t;
 
 lookup_table_item_t
@@ -27,7 +29,11 @@ char **translate(char **lines);
 char *translateArithmeticAndLogicalInstruction(char *instruction);
 char *translateMemoryInstruction(char *line);
 char *translateBranchingInstruction(char *line);
+char *translateFunctionInstruction(char *line);
+char *translateReturnInstruction(char *line);
 char **initialize(const char *);
 void insertSegmentTable(char *key, char *data);
 lookup_table_item_t *searchSegmentTable(char *key);
+void insertFunctionTable(char *key, int args, int local);
+function_table_item_t *searchFunctionTable(char *key);
 void writeToFile(char **instructions, const char *fileName);
