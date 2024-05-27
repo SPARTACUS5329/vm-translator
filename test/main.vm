@@ -1,0 +1,24 @@
+function main 4
+label STARTING
+push constant 10
+pop temp 6
+push local 0
+push that 5
+add
+push argument 1
+sub
+neg
+and
+gt
+lt
+lt
+push static 5
+pop static 5
+goto STARTING
+call foo 3
+call foo 3
+return
+function foo 3
+pop local 5
+push argument 1
+return

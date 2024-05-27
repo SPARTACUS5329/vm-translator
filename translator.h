@@ -6,6 +6,7 @@
 #define MAX_ASSEMBLY_LINE_LENGTH 300
 #define MAX_LABEL_SIZE 50
 #define MAX_FUNCTIONS 500
+#define MAX_FILES 20
 
 typedef struct {
   int key;

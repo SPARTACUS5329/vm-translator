@@ -1,10 +1,14 @@
 #include "translator.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #define streq(str1, str2, n) (strncmp(str1, str2, n) == 0)
 
 static int lineCount = 0;
+static int fileCount = 0;
 static int eqCount = 0;
 static int gtCount = 0;
 static int ltCount = 0;
@@ -218,14 +222,8 @@ char **initialize(const char *fileName) {
   if (file == NULL)
     error("[initialize] File not found");
 
-  if (sscanf(fileName, "%[^.]", staticPrefix) != 1)
-    error("[initialize] Invalid file naming convention");
-
   char **lines;
   char buffer[100];
-
-  if (lines == NULL)
-    error("Memory allocation error");
 
   lines = (char **)malloc(MAX_LINES * sizeof(char *));
   for (int i = 0; i < MAX_LINES; i++) {
@@ -240,8 +238,7 @@ char **initialize(const char *fileName) {
       if (buffer[length - 1] == '\n')
         buffer[length - 1] = '\0';
 
-      strcpy(lines[lineCount], buffer);
-      lineCount++;
+      strcpy(lines[lineCount++], buffer);
     } else
       error("Too many lines in the file. Increase MAX_LINES.\n");
   }
@@ -363,16 +360,98 @@ void firstPass(char **lines) {
   }
 }
 
+void translateFile(const char *readStream, const char *writeStream) {
+  switch (sscanf(readStream, "%[^.]", staticPrefix)) {
+    char *lastSlash;
+    const char *lastDot;
+
+  case 1:
+    break;
+
+  case 0:
+    lastSlash = strrchr(readStream, '/');
+    if (lastSlash == NULL)
+      error("[initialize] Invalid directory-file format");
+    lastSlash++;
+
+    lastDot = strrchr(lastSlash, '.');
+    if (lastDot == NULL || !streq(lastDot, ".vm", 3)) {
+      printf("[translateFile] Skipping %s: Invalid file extension", readStream);
+      return;
+    }
+    strncpy(staticPrefix, lastSlash, lastDot - lastSlash);
+    staticPrefix[lastDot - lastSlash] = '\0';
+    break;
+
+  default:
+    printf("[translateFile] Skipping %s: Invalid file naming convention",
+           readStream);
+    return;
+  }
+
+  char **lines = initialize(readStream);
+  printf("\nTranslating %s...\n\n", readStream);
+  firstPass(lines);
+  char **instructions = translate(lines);
+  writeToFile(instructions, writeStream);
+  printf("Successfully translated!\n");
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 3)
     error("[main] Not enough input arguments");
-  const char *readFileName = argv[1];
-  const char *writeFileName = argv[2];
-  printf("\nTranslating %s...\n\n", readFileName);
-  char **lines = initialize(readFileName);
-  firstPass(lines);
-  char **instructions = translate(lines);
-  writeToFile(instructions, writeFileName);
-  printf("Successfully translated!\n");
+  const char *readStream = argv[1];
+  const char *writeStream = argv[2];
+  const char *extensionStarting = strstr(readStream, "/");
+  if (extensionStarting == NULL) {
+    // handle single file case
+    char *extension = strstr(readStream, ".");
+    if (extension == NULL || !streq(extension, ".vm", 3))
+      error("[main] Error in file naming convention");
+    translateFile(readStream, writeStream);
+  } else {
+    // handle directory case
+    DIR *dir = opendir(readStream);
+    if (!dir)
+      error("[main] Error in opening directory");
+
+    struct dirent *entry;
+    struct stat statbuf;
+    char fullpath[1024];
+    char **files;
+    files = (char **)malloc(MAX_FILES * sizeof(char *));
+    for (int i = 0; i < MAX_FILES; i++) {
+      files[i] = (char *)malloc(100 * sizeof(char));
+      if (files[i] == NULL)
+        error("Memory allocation error");
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+      if (streq(entry->d_name, ".", 1) || streq(entry->d_name, "..", 2))
+        continue;
+
+      sprintf(fullpath, "%s/%s", readStream, entry->d_name);
+
+      if (stat(fullpath, &statbuf) == -1)
+        error("[main] stat");
+
+      strcpy(files[fileCount++], entry->d_name);
+    }
+
+    closedir(dir);
+    for (int i = 0; i < fileCount; i++) {
+      char readFile[MAX_FILE_NAME_LENGTH];
+      sprintf(readFile, "%s", files[i]);
+      char readFilePath[MAX_FILE_NAME_LENGTH];
+      sprintf(readFilePath, "%s/%s", readStream, readFile);
+      char *vmExtension = strstr(readFile, ".");
+      char readFileName[MAX_FILE_NAME_LENGTH];
+      strncpy(readFileName, readFile, vmExtension - readFile);
+      readFileName[vmExtension - readFile] = '\0';
+      char writeFilePath[MAX_FILE_NAME_LENGTH];
+      sprintf(writeFilePath, "%s/%s.asm", readStream, readFileName);
+      translateFile(readFilePath, writeFilePath);
+    }
+  }
   return 0;
 }
